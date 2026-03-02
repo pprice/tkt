@@ -34,8 +34,8 @@ func runServe(ctx context, args []string) error {
 }
 
 // runWatch is kept as an alias for backward compatibility.
-func runWatch(ctx context, args []string) error {
-	return runWatchForeground(ctx, args, "watch")
+func runServeRun(ctx context, args []string) error {
+	return runWatchForeground(ctx, args, "serve run")
 }
 
 func runWatchForeground(ctx context, args []string, cmdName string) error {
@@ -63,7 +63,7 @@ func runWatchForeground(ctx context, args []string, cmdName string) error {
 	if !ctx.json {
 		cfg, _ := project.Load()
 		_, _ = fmt.Fprintf(
-			ctx.stdout,
+			ctx.stderr,
 			"%s starting: projects=%d interval=%s watcher=%t mcp=%t once=%t\n",
 			cmdName,
 			len(cfg.Projects),
@@ -73,7 +73,7 @@ func runWatchForeground(ctx context, args []string, cmdName string) error {
 			once,
 		)
 		defer func() {
-			_, _ = fmt.Fprintf(ctx.stdout, "%s stopping\n", cmdName)
+			_, _ = fmt.Fprintf(ctx.stderr, "%s stopping\n", cmdName)
 		}()
 	}
 
@@ -113,9 +113,9 @@ func runWatchForeground(ctx context, args []string, cmdName string) error {
 			})
 		}
 		if totalAppended > 0 || totalClosed > 0 || len(allWarnings) > 0 {
-			_, _ = fmt.Fprintf(ctx.stdout, "watch cycle complete: appended %d entries, auto-closed %d ticket(s)\n", totalAppended, totalClosed)
+			_, _ = fmt.Fprintf(ctx.stderr, "watch cycle complete: appended %d entries, auto-closed %d ticket(s)\n", totalAppended, totalClosed)
 			for _, msg := range allWarnings {
-				_, _ = fmt.Fprintf(ctx.stdout, "  %s\n", msg)
+				_, _ = fmt.Fprintf(ctx.stderr, "  %s\n", msg)
 			}
 		}
 		return nil
@@ -203,7 +203,7 @@ func runServeStart(ctx context, args []string) error {
 		return fmt.Errorf("open log file: %w", err)
 	}
 
-	childArgs := []string{self, "watch", "--interval=" + interval.String(), "--no-mcp"}
+	childArgs := []string{self, "serve", "run", "--interval=" + interval.String(), "--no-mcp"}
 	if noWatcher {
 		childArgs = append(childArgs, "--no-watcher")
 	}

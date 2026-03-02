@@ -80,7 +80,7 @@ When it finds a match, it appends an entry to an append-only journal linking the
 
 The journal lives at `~/.tkt/state/<project>/journal.log`. It's the source for commit-linked views like `progress` and `context`. Journal timestamps also enable time-spent tracking via `tkt lifecycle <id>`, which shows status transitions and durations.
 
-Run in foreground with `tkt watch`, or manage the daemon with `tkt serve start`, `tkt serve stop`, `tkt serve status`, and `tkt serve logs`.
+Manage the daemon with `tkt serve start`, `tkt serve stop`, `tkt serve status`, and `tkt serve logs`.
 
 ### Composite Views
 

@@ -73,7 +73,7 @@ func TestWatchOnceAppendsJournalWithDedupeAndCatchup(t *testing.T) {
 			t.Fatalf("save config: %v", err)
 		}
 
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("first watch --once: %v", err)
 		}
 
@@ -114,7 +114,7 @@ func TestWatchOnceAppendsJournalWithDedupeAndCatchup(t *testing.T) {
 		}
 
 		// Re-run without new commits should dedupe by SHA and keep same count.
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("second watch --once: %v", err)
 		}
 		entries = readJournalEntriesFromFile(t, journalPath)
@@ -125,7 +125,7 @@ func TestWatchOnceAppendsJournalWithDedupeAndCatchup(t *testing.T) {
 		// New commit after restart should be caught up and appended.
 		catchupDate := time.Now().UTC().Add(time.Second).Format(time.RFC3339)
 		commitWithDate("close.txt", "fixes [new-2] follow-up", catchupDate)
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("third watch --once: %v", err)
 		}
 		entries = readJournalEntriesFromFile(t, journalPath)
@@ -222,7 +222,7 @@ func TestWatchAutoCloseUpdatesTicketStatus(t *testing.T) {
 			t.Fatalf("save config: %v", err)
 		}
 
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("watch --once: %v", err)
 		}
 
@@ -283,7 +283,7 @@ func TestWatchMatchesCloseDirectiveInCommitBody(t *testing.T) {
 			t.Fatalf("save config: %v", err)
 		}
 
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("watch --once: %v", err)
 		}
 
@@ -354,7 +354,7 @@ func TestWatchCentralStoreAutoCommit(t *testing.T) {
 			t.Fatalf("save config: %v", err)
 		}
 
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("watch --once central: %v", err)
 		}
 
@@ -450,7 +450,7 @@ func TestWatchCentralStoreCommitsCLIMutations(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(centralDir, "mut-1.md")); err != nil {
 			t.Fatalf("expected mut-1.md on disk: %v", err)
 		}
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("watch --once after create: %v", err)
 		}
 		assertClean("create")
@@ -459,7 +459,7 @@ func TestWatchCentralStoreCommitsCLIMutations(t *testing.T) {
 		if _, _, err := runCmd(t, "", "edit", "mut-1", "-s", "in_progress"); err != nil {
 			t.Fatalf("edit: %v", err)
 		}
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("watch --once after edit: %v", err)
 		}
 		assertClean("edit")
@@ -468,7 +468,7 @@ func TestWatchCentralStoreCommitsCLIMutations(t *testing.T) {
 		if _, _, err := runCmd(t, "", "add-note", "mut-1", "This is a note"); err != nil {
 			t.Fatalf("add-note: %v", err)
 		}
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("watch --once after add-note: %v", err)
 		}
 		assertClean("add-note")
@@ -477,7 +477,7 @@ func TestWatchCentralStoreCommitsCLIMutations(t *testing.T) {
 		if _, _, err := runCmd(t, "", "delete", "mut-1"); err != nil {
 			t.Fatalf("delete: %v", err)
 		}
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("watch --once after delete: %v", err)
 		}
 		assertClean("delete")
@@ -551,7 +551,7 @@ func TestWatchCentralStoreCommitsWithAutoFeaturesDisabled(t *testing.T) {
 		if _, _, err := runCmd(t, "", "create", "No auto features", "--id", "noauto-1"); err != nil {
 			t.Fatalf("create: %v", err)
 		}
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("watch --once: %v", err)
 		}
 
@@ -696,7 +696,7 @@ func TestWatchSetsWorkDurationForLiveCommits(t *testing.T) {
 			t.Fatalf("save config: %v", err)
 		}
 
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("watch --once: %v", err)
 		}
 
@@ -789,7 +789,7 @@ func TestWatchOmitsWorkDurationForCatchupCommits(t *testing.T) {
 			t.Fatalf("save config: %v", err)
 		}
 
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("watch --once: %v", err)
 		}
 
@@ -888,7 +888,7 @@ func TestWatchGlobalIteratesMultipleProjects(t *testing.T) {
 		}
 
 		// watch --once should process both projects
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("watch --once: %v", err)
 		}
 
@@ -958,7 +958,7 @@ func TestWatchGlobalSkipsDisabledProjects(t *testing.T) {
 			t.Fatalf("save config: %v", err)
 		}
 
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("watch --once: %v", err)
 		}
 
@@ -1046,7 +1046,7 @@ func TestWatchGlobalJournalsRefsAndAutoCloses(t *testing.T) {
 			t.Fatalf("save config: %v", err)
 		}
 
-		if _, _, err := runCmd(t, "", "watch", "--once"); err != nil {
+		if _, _, err := runCmd(t, "", "serve", "run", "--once"); err != nil {
 			t.Fatalf("watch --once: %v", err)
 		}
 
@@ -1229,4 +1229,62 @@ func TestSyncCentralStoreGitPushesWithoutConfiguredUpstream(t *testing.T) {
 	if strings.TrimSpace(string(upstreamOut)) != "origin/"+branch {
 		t.Fatalf("expected origin/%s upstream, got %q", branch, string(upstreamOut))
 	}
+}
+
+func TestServeRunLogsToStderrNotStdout(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+
+	withWorkspaceNoTickets(t, func(dir string) {
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+
+		runGit := func(args ...string) {
+			t.Helper()
+			cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("git %v failed: %v\n%s", args, err, string(out))
+			}
+		}
+
+		runGit("init")
+		runGit("config", "user.email", "tkt@example.com")
+		runGit("config", "user.name", "tkt")
+
+		if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		runGit("add", "a.txt")
+		runGit("commit", "-m", "initial")
+
+		cfg := project.Config{
+			Projects: map[string]project.ProjectConfig{
+				"demo": {
+					Path:         project.DetectProjectPath(dir),
+					Store:        "local",
+					AutoLink:     true,
+					RegisteredAt: time.Now().UTC().Add(-5 * time.Second).Format(time.RFC3339),
+				},
+			},
+		}
+		if err := project.Save(cfg); err != nil {
+			t.Fatalf("save config: %v", err)
+		}
+
+		stdout, stderr, err := runCmd(t, "", "serve", "run", "--once")
+		if err != nil {
+			t.Fatalf("serve run --once: %v", err)
+		}
+
+		// Stdout must be clean — no human log output (MCP uses stdout for JSON-RPC).
+		if strings.Contains(stdout, "starting") || strings.Contains(stdout, "stopping") || strings.Contains(stdout, "cycle") {
+			t.Fatalf("expected stdout to be clean of log output, got: %q", stdout)
+		}
+
+		// Stderr should contain the startup/stopping messages.
+		if !strings.Contains(stderr, "starting") {
+			t.Fatalf("expected stderr to contain startup message, got: %q", stderr)
+		}
+	})
 }

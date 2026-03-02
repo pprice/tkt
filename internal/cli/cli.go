@@ -148,12 +148,6 @@ func rootCommand() command {
 			runRecompute,
 		),
 		"serve": serveRootCommand(),
-		"watch": commandWithRunner(
-			"watch",
-			"watch [--once] [--interval=5s]",
-			"Monitor git commits and append commit journal entries (alias for serve)",
-			runWatch,
-		),
 		"config": commandWithRunner(
 			"config",
 			"config [--project <name>] [--all] | config set [<project>] <field> <value> | config resolve",
@@ -185,7 +179,6 @@ func rootCommand() command {
 	setDetail(commands, "closed", closedDetail)
 	setDetail(commands, "query", queryDetail)
 	setDetail(commands, "add-note", addNoteDetail)
-	setDetail(commands, "watch", watchDetail)
 	setDetail(commands, "config", configDetail)
 	setDetail(commands, "dep", depDetail)
 	setDetail(commands, "timeline", timelineDetail)
@@ -211,6 +204,7 @@ func serveRootCommand() command {
 			"stop":   commandWithRunner("stop", "serve stop", "Stop background serve", runServeStop),
 			"status": commandWithRunner("status", "serve status", "Show serve daemon status", runServeStatus),
 			"logs":   commandWithRunner("logs", "serve logs [-n=50]", "Show recent serve log output", runServeLogs),
+			"run":    commandWithRunner("run", "serve run [--once] [--interval=5s]", "Run watcher in foreground (internal)", runServeRun),
 		},
 	}
 }
@@ -285,7 +279,7 @@ func isHelpArg(token string) bool {
 // requiresInit returns true for commands that need a resolved project.
 func requiresInit(cmdName string) bool {
 	switch cmdName {
-	case "init", "config", "tui", "mcp", "serve", "watch", "workflow", "version":
+	case "init", "config", "tui", "mcp", "serve", "workflow", "version":
 		return false
 	}
 	return true

@@ -39,7 +39,6 @@ func TestHelpListsV1Commands(t *testing.T) {
 		"dashboard",
 		"epic-view",
 		"tui",
-		"watch",
 		"serve",
 		"mcp",
 		"config",
@@ -94,7 +93,7 @@ func TestDepTreeErrorsWhenTicketMissing(t *testing.T) {
 
 func TestRequiresInit(t *testing.T) {
 	// Commands that should NOT require init
-	noInit := []string{"init", "config", "tui", "mcp", "serve", "watch", "workflow", "version"}
+	noInit := []string{"init", "config", "tui", "mcp", "serve", "workflow", "version"}
 	for _, cmd := range noInit {
 		if requiresInit(cmd) {
 			t.Errorf("requiresInit(%q) = true, want false", cmd)

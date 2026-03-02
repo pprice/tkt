@@ -71,7 +71,6 @@ func rootHelpSections() []helpSection {
 			entries: []helpEntry{
 				{"workflow", "Ticket lifecycle, commit format, and conventions  ★"},
 				{"tui", "Interactive terminal UI"},
-				{"watch [--once]", "Monitor git commits and update journal"},
 				{"serve start|stop|status|logs", "Manage background watcher daemon"},
 				{"mcp", "Start MCP stdio JSON-RPC server"},
 			},
@@ -254,14 +253,6 @@ If no text argument is given, reads from stdin.
 Examples:
   tkt add-note my-ticket "Discussed in standup, deprioritized"
   echo "Long note content" | tkt add-note my-ticket`
-
-const watchDetail = `Options:
-  --once                     Process existing commits and exit
-  --interval <duration>      Poll interval [default: 5s]
-
-Monitors git commits and appends entries to the commit journal.
-Links commits to tickets via bracket refs in commit messages
-(e.g., [my-ticket]). Live commits also capture work duration.`
 
 const configDetail = `Subcommands:
   tkt config                           Show config for current project
