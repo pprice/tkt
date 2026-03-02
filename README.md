@@ -72,6 +72,16 @@ You can also use `--store local` to keep tickets in `.tickets/` inside your proj
 
 **Note:** tkt is currently designed for single-machine use. The central store at `~/.tickets` is local and can be auto-pushed to git, but has only been designed currently for a single machine. There's no built-in multi-device sync. This is a future consideration.
 
+#### Custom Store Location
+
+There is an option to set the `TKT_ROOT` environment variable to override the default `~/.tickets` path for the central store. May help for sandboxed environments where `$HOME` may not resolve to the expected location.
+
+```bash
+export TKT_ROOT=/workspace/tickets  # must be an absolute path
+```
+
+`TKT_ROOT` only affects the central ticket store — config and state remain at `~/.tkt`. If using the background daemon (`tkt serve start`), ensure `TKT_ROOT` is set in the environment when the daemon is started.
+
 ### Service Mode
 
 `tkt serve start` runs a background daemon that polls your project's git log on an interval (default 30s). It looks for ticket IDs in commit messages using bracket refs (e.g. `[my-ticket-id]`).

@@ -326,6 +326,51 @@ func samePath(a, b string) bool {
 	return filepath.Clean(aAbs) == filepath.Clean(bAbs)
 }
 
+func TestInitCentralHonorsTktRoot(t *testing.T) {
+	withWorkspaceNoTickets(t, func(dir string) {
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+
+		customRoot := filepath.Join(t.TempDir(), "custom-store")
+		t.Setenv("TKT_ROOT", customRoot)
+
+		out, _, err := runCmd(t, "", "init", "--project", "demo", "--store", "central", "--yes")
+		if err != nil {
+			t.Fatalf("init central with TKT_ROOT: %v", err)
+		}
+
+		// Tickets should be in the custom root, not ~/.tickets.
+		if _, err := os.Stat(filepath.Join(customRoot, "demo")); err != nil {
+			t.Fatalf("expected project dir at custom TKT_ROOT: %v", err)
+		}
+		defaultRoot := filepath.Join(home, ".tickets", "demo")
+		if _, err := os.Stat(defaultRoot); err == nil {
+			t.Fatalf("expected NO project dir at default ~/.tickets when TKT_ROOT is set")
+		}
+
+		// Output should reference the custom path.
+		if !strings.Contains(out, customRoot) {
+			t.Fatalf("expected output to reference TKT_ROOT path %s, got: %q", customRoot, out)
+		}
+	})
+}
+
+func TestInitCentralRejectsRelativeTktRoot(t *testing.T) {
+	withWorkspaceNoTickets(t, func(dir string) {
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		t.Setenv("TKT_ROOT", "relative/path")
+
+		_, _, err := runCmd(t, "", "init", "--project", "demo", "--store", "central", "--yes")
+		if err == nil {
+			t.Fatal("expected error for relative TKT_ROOT, got nil")
+		}
+		if !strings.Contains(err.Error(), "TKT_ROOT must be an absolute path") {
+			t.Fatalf("expected absolute path error, got: %v", err)
+		}
+	})
+}
+
 func gitCommitCount(t *testing.T, repo string) int {
 	t.Helper()
 	out, err := exec.Command("git", "-C", repo, "rev-list", "--count", "HEAD").CombinedOutput()

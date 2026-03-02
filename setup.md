@@ -77,3 +77,6 @@ Also let them know:
 2. **New projects**: Run `tkt init` in each new project directory.
 
 3. **Quick start**: `tkt help`, `tkt tui`, `tkt workflow`.
+
+4. **Custom store path**: Optionally set `TKT_ROOT=/path/to/store` to override the default `~/.tickets`
+   location. Must be an absolute path.

@@ -81,7 +81,11 @@ func runInit(ctx context, args []string) error {
 			if interactive {
 				_, _ = fmt.Fprintln(ctx.stdout, "Existing tickets found in .tickets/")
 				_, _ = fmt.Fprintln(ctx.stdout)
-				_, _ = fmt.Fprintln(ctx.stdout, "  [1] Copy to central store at ~/.tickets")
+				centralRootDisplay, err := centralStoreRootDir()
+				if err != nil {
+					return fmt.Errorf("cannot resolve central store path: %w", err)
+				}
+				_, _ = fmt.Fprintf(ctx.stdout, "  [1] Copy to central store at %s\n", centralRootDisplay)
 				_, _ = fmt.Fprintln(ctx.stdout, "      Copies .md files; originals kept as backup")
 				_, _ = fmt.Fprintln(ctx.stdout, "  [2] Keep local in .tickets/ inside this repo")
 				_, _ = fmt.Fprintln(ctx.stdout)
@@ -103,7 +107,11 @@ func runInit(ctx context, args []string) error {
 			if interactive {
 				_, _ = fmt.Fprintln(ctx.stdout, "Where should tickets be stored?")
 				_, _ = fmt.Fprintln(ctx.stdout)
-				_, _ = fmt.Fprintln(ctx.stdout, "  [1] Central store at ~/.tickets")
+				centralRootDisplay, err := centralStoreRootDir()
+				if err != nil {
+					return fmt.Errorf("cannot resolve central store path: %w", err)
+				}
+				_, _ = fmt.Fprintf(ctx.stdout, "  [1] Central store at %s\n", centralRootDisplay)
 				_, _ = fmt.Fprintln(ctx.stdout, "      Separate git repo, keeps project history clean")
 				_, _ = fmt.Fprintln(ctx.stdout, "  [2] Local .tickets/ inside this repo")
 				_, _ = fmt.Fprintln(ctx.stdout)
@@ -238,7 +246,10 @@ func runInit(ctx context, args []string) error {
 		_, _ = fmt.Fprintln(ctx.stdout, "    Original .tickets/ kept as backup — remove when ready.")
 	}
 	if gitIdentitySet {
-		_, _ = fmt.Fprintln(ctx.stdout, "  ✓ Git identity set to tkt@local in ~/.tickets (no existing identity found)")
+		gitIdentityRoot, err := centralStoreRootDir()
+		if err == nil {
+			_, _ = fmt.Fprintf(ctx.stdout, "  ✓ Git identity set to tkt@local in %s (no existing identity found)\n", gitIdentityRoot)
+		}
 	}
 	_, _ = fmt.Fprintln(ctx.stdout, "  ✓ Project registered in ~/.tkt/config.yaml")
 	if !hasGit {

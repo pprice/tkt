@@ -183,7 +183,7 @@ func rootCommand() command {
 	setDetail(commands, "dep", depDetail)
 	setDetail(commands, "timeline", timelineDetail)
 	setDetail(commands, "init", initDetail)
-	setDetail(commands, "migrate", migrateDetail)
+	setDetail(commands, "migrate", migrateDetailFunc())
 	setDetail(commands, "recompute", recomputeDetail)
 
 	return command{

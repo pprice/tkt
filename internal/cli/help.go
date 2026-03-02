@@ -3,6 +3,8 @@ package cli
 import (
 	"fmt"
 	"sort"
+
+	"github.com/lawrips/tkt/internal/engine"
 )
 
 // helpSection groups commands under a heading for the root help output.
@@ -143,8 +145,13 @@ func printRootHelp(ctx context) {
 	fmt.Fprintf(ctx.stdout, "  %-27s %s\n", "--project <name>", "Override auto-detected project")
 
 	fmt.Fprintln(ctx.stdout)
+	centralRoot, err := engine.CentralStoreRoot()
+	if err != nil {
+		fmt.Fprintf(ctx.stderr, "warning: %v\n", err)
+		centralRoot = "~/.tickets"
+	}
 	fmt.Fprintln(ctx.stdout, "Partial ID matching: 'tkt show 5c4' matches 'nw-5c46'")
-	fmt.Fprintln(ctx.stdout, "Tickets stored as markdown in .tickets/ or ~/.tickets/<project>/")
+	fmt.Fprintf(ctx.stdout, "Tickets stored as markdown in .tickets/ or %s/<project>/\n", centralRoot)
 	fmt.Fprintln(ctx.stdout)
 	fmt.Fprintln(ctx.stdout, "Use `tkt help <command>` for details.")
 }
@@ -287,12 +294,18 @@ const initDetail = `Options:
 Sets up tkt for the current repository: validates git state, configures
 storage mode and project mapping.`
 
-const migrateDetail = `Options:
-  --central                  Move tickets to central store (~/.tickets/<project>/)
+func migrateDetailFunc() string {
+	centralRoot, err := engine.CentralStoreRoot()
+	if err != nil {
+		centralRoot = "~/.tickets"
+	}
+	return fmt.Sprintf(`Options:
+  --central                  Move tickets to central store (%s/<project>/)
   --local                    Move tickets to local .tickets/ directory
   --yes                      Skip confirmation prompt
 
-Exactly one of --central or --local is required.`
+Exactly one of --central or --local is required.`, centralRoot)
+}
 
 const recomputeDetail = `Options:
   --yes                      Skip confirmation prompt

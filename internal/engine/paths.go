@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -23,8 +24,16 @@ func MutationLogPath(projectName string) (string, error) {
 	return filepath.Join(home, ".tkt", "state", projectName, "mutations.jsonl"), nil
 }
 
-// CentralStoreRoot returns ~/.tickets.
+// CentralStoreRoot returns the central ticket store root directory.
+// If TKT_ROOT is set, it is used (must be an absolute path).
+// Otherwise defaults to ~/.tickets.
 func CentralStoreRoot() (string, error) {
+	if root := os.Getenv("TKT_ROOT"); root != "" {
+		if !filepath.IsAbs(root) {
+			return "", fmt.Errorf("TKT_ROOT must be an absolute path, got: %s", root)
+		}
+		return root, nil
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
