@@ -678,41 +678,151 @@ func syncCentralStoreGit(storeRoot string) string {
 		return warning
 	}
 
+	remoteNames, err := centralStoreRemoteNames(storeRoot)
+	if err != nil {
+		return fmt.Sprintf("git remote failed: %v", err)
+	}
+	remoteConfigured := len(remoteNames) > 0
+	if remoteConfigured {
+		if blocked := readCentralSyncBlocked(storeRoot); blocked != "" {
+			if centralSyncBlockResolved(storeRoot) {
+				_ = clearCentralSyncBlocked(storeRoot)
+			} else {
+				return blocked
+			}
+		}
+	}
+
 	if out, err := exec.Command("git", "-C", storeRoot, "add", "-A").CombinedOutput(); err != nil {
 		return fmt.Sprintf("git add failed: %v (%s)", err, strings.TrimSpace(string(out)))
 	}
 
+	var info string
 	diff := exec.Command("git", "-C", storeRoot, "diff", "--cached", "--quiet")
-	if err := diff.Run(); err == nil {
-		return ""
+	if err := diff.Run(); err != nil {
+		// Staged changes — commit them.
+		commitMsg := buildCentralCommitMessage(storeRoot)
+		if out, err := exec.Command("git", "-C", storeRoot, "commit", "-m", commitMsg).CombinedOutput(); err != nil {
+			return fmt.Sprintf("git commit failed: %v (%s)", err, strings.TrimSpace(string(out)))
+		}
+		info = fmt.Sprintf("central: committed (%s)", commitMsg)
 	}
 
-	commitMsg := buildCentralCommitMessage(storeRoot)
-	if out, err := exec.Command("git", "-C", storeRoot, "commit", "-m", commitMsg).CombinedOutput(); err != nil {
-		return fmt.Sprintf("git commit failed: %v (%s)", err, strings.TrimSpace(string(out)))
-	}
-	info := fmt.Sprintf("central: committed (%s)", commitMsg)
-
-	remoteOut, err := exec.Command("git", "-C", storeRoot, "remote").Output()
-	if err != nil {
-		return info
-	}
-	if strings.TrimSpace(string(remoteOut)) == "" {
+	if !remoteConfigured {
 		return info
 	}
 
-	if out, err := exec.Command("git", "-C", storeRoot, "push").CombinedOutput(); err == nil {
+	// Check if there are unpushed commits (covers both fresh commits and
+	// previous cycles where push/rebase failed and left commits behind).
+	shouldPush := info != ""
+	if !shouldPush {
+		out, err := exec.Command("git", "-C", storeRoot, "rev-list", "--count", "@{u}..HEAD").CombinedOutput()
+		if err == nil {
+			shouldPush = strings.TrimSpace(string(out)) != "0"
+		} else if isNoUpstreamError(string(out)) {
+			shouldPush = true
+		} else {
+			return fmt.Sprintf("git upstream status check failed (%s)", strings.TrimSpace(string(out)))
+		}
+	}
+	if !shouldPush {
+		_ = clearCentralSyncBlocked(storeRoot)
+		return info
+	}
+
+	if out, err := pushCentralStoreGit(storeRoot, remoteNames[0]); err == nil {
+		_ = clearCentralSyncBlocked(storeRoot)
 		return info
 	} else {
 		_, _ = out, err
 	}
 
-	_, _ = exec.Command("git", "-C", storeRoot, "pull", "--rebase").CombinedOutput()
-	if out, err := exec.Command("git", "-C", storeRoot, "push").CombinedOutput(); err != nil {
-		return fmt.Sprintf("git push retry failed; will retry next cycle (%s)", strings.TrimSpace(string(out)))
+	// Push failed — attempt pull --rebase then retry.
+	if out, err := exec.Command("git", "-C", storeRoot, "pull", "--rebase").CombinedOutput(); err != nil {
+		// Rebase failed — abort to leave repo in a clean state.
+		_, _ = exec.Command("git", "-C", storeRoot, "rebase", "--abort").CombinedOutput()
+		msg := fmt.Sprintf("central sync blocked: git pull --rebase failed; aborted rebase to keep repo clean (%s)", strings.TrimSpace(string(out)))
+		_ = writeCentralSyncBlocked(storeRoot, msg)
+		return msg
 	}
 
+	if out, err := pushCentralStoreGit(storeRoot, remoteNames[0]); err != nil {
+		return fmt.Sprintf("git push failed after rebase (%s)", strings.TrimSpace(string(out)))
+	}
+	_ = clearCentralSyncBlocked(storeRoot)
+
 	return info
+}
+
+func centralStoreRemoteNames(storeRoot string) ([]string, error) {
+	out, err := exec.Command("git", "-C", storeRoot, "remote").Output()
+	if err != nil {
+		return nil, err
+	}
+	names := strings.Fields(strings.TrimSpace(string(out)))
+	return names, nil
+}
+
+func pushCentralStoreGit(storeRoot, remoteName string) ([]byte, error) {
+	out, err := exec.Command("git", "-C", storeRoot, "push").CombinedOutput()
+	if err == nil || !isNoUpstreamError(string(out)) {
+		return out, err
+	}
+
+	branchOut, branchErr := exec.Command("git", "-C", storeRoot, "rev-parse", "--abbrev-ref", "HEAD").CombinedOutput()
+	if branchErr != nil {
+		return out, err
+	}
+	branch := strings.TrimSpace(string(branchOut))
+	if branch == "" || branch == "HEAD" {
+		return out, err
+	}
+
+	return exec.Command("git", "-C", storeRoot, "push", "-u", remoteName, branch).CombinedOutput()
+}
+
+func isNoUpstreamError(out string) bool {
+	return strings.Contains(out, "has no upstream branch") || strings.Contains(out, "no upstream branch")
+}
+
+func centralSyncBlockedPath(storeRoot string) string {
+	return filepath.Join(storeRoot, ".git", "tkt-central-sync-blocked")
+}
+
+func readCentralSyncBlocked(storeRoot string) string {
+	raw, err := os.ReadFile(centralSyncBlockedPath(storeRoot))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(raw))
+}
+
+func writeCentralSyncBlocked(storeRoot, msg string) error {
+	return os.WriteFile(centralSyncBlockedPath(storeRoot), []byte(strings.TrimSpace(msg)+"\n"), 0644)
+}
+
+func clearCentralSyncBlocked(storeRoot string) error {
+	if err := os.Remove(centralSyncBlockedPath(storeRoot)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+func centralSyncBlockResolved(storeRoot string) bool {
+	if dirExists(filepath.Join(storeRoot, ".git", "rebase-apply")) || dirExists(filepath.Join(storeRoot, ".git", "rebase-merge")) {
+		return false
+	}
+
+	statusOut, err := exec.Command("git", "-C", storeRoot, "status", "--porcelain").Output()
+	if err != nil || strings.TrimSpace(string(statusOut)) != "" {
+		return false
+	}
+
+	aheadOut, err := exec.Command("git", "-C", storeRoot, "rev-list", "--count", "@{u}..HEAD").CombinedOutput()
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(aheadOut)) == "0"
 }
 
 func buildCentralCommitMessage(storeRoot string) string {

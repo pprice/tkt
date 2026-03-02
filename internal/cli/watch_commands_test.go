@@ -1083,3 +1083,150 @@ func TestWatchGlobalJournalsRefsAndAutoCloses(t *testing.T) {
 		}
 	})
 }
+
+func TestSyncCentralStoreGitAbortsRebaseOnConflict(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+
+	runGit := func(t *testing.T, repo string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git -C %s %v failed: %v\n%s", repo, args, err, string(out))
+		}
+	}
+
+	// Set up a bare remote, a central store clone, and create a conflict.
+	remote := filepath.Join(t.TempDir(), "remote.git")
+	runGit(t, ".", "init", "--bare", remote)
+
+	store := filepath.Join(t.TempDir(), "store")
+	runGit(t, ".", "clone", remote, store)
+	runGit(t, store, "config", "user.email", "tkt@example.com")
+	runGit(t, store, "config", "user.name", "tkt")
+
+	// Seed the remote with an initial commit.
+	ticketDir := filepath.Join(store, "demo")
+	if err := os.MkdirAll(ticketDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ticketDir, "t1.md"), []byte("---\nid: t1\n---\n# T1 original\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, store, "add", "-A")
+	runGit(t, store, "commit", "-m", "seed")
+	runGit(t, store, "push")
+
+	// Make a conflicting commit on the remote (via a second clone).
+	store2 := filepath.Join(t.TempDir(), "store2")
+	runGit(t, ".", "clone", remote, store2)
+	runGit(t, store2, "config", "user.email", "tkt@example.com")
+	runGit(t, store2, "config", "user.name", "tkt")
+	if err := os.WriteFile(filepath.Join(store2, "demo", "t1.md"), []byte("---\nid: t1\n---\n# T1 remote change\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, store2, "add", "-A")
+	runGit(t, store2, "commit", "-m", "remote edit")
+	runGit(t, store2, "push")
+
+	// Make a conflicting local change in the original store (uncommitted so
+	// syncCentralStoreGit will add, commit, then hit the push/rebase conflict).
+	if err := os.WriteFile(filepath.Join(ticketDir, "t1.md"), []byte("---\nid: t1\n---\n# T1 local change\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// syncCentralStoreGit should commit, fail to push, fail to rebase, and abort cleanly.
+	result := syncCentralStoreGit(store)
+
+	if !strings.Contains(result, "aborted rebase") {
+		t.Fatalf("expected aborted rebase message, got: %q", result)
+	}
+
+	// Verify repo is NOT left in a mid-rebase state.
+	rebaseDir := filepath.Join(store, ".git", "rebase-apply")
+	rebaseMergeDir := filepath.Join(store, ".git", "rebase-merge")
+	if _, err := os.Stat(rebaseDir); err == nil {
+		t.Fatal("repo left in mid-rebase state (rebase-apply exists)")
+	}
+	if _, err := os.Stat(rebaseMergeDir); err == nil {
+		t.Fatal("repo left in mid-rebase state (rebase-merge exists)")
+	}
+	statusOut, err := exec.Command("git", "-C", store, "status", "--porcelain").Output()
+	if err != nil {
+		t.Fatalf("git status after abort: %v", err)
+	}
+	if strings.TrimSpace(string(statusOut)) != "" {
+		t.Fatalf("expected clean repo after abort, got %q", string(statusOut))
+	}
+	if blocked := readCentralSyncBlocked(store); !strings.Contains(blocked, "central sync blocked:") {
+		t.Fatalf("expected persisted blocked sync warning, got %q", blocked)
+	}
+
+	// Second cycle: the daemon should not retry the same conflict. It should
+	// surface the persisted blocked state until the repo is resolved.
+	result2 := syncCentralStoreGit(store)
+	if !strings.Contains(result2, "central sync blocked:") {
+		t.Fatalf("expected second cycle to stay blocked, got: %q", result2)
+	}
+
+	statusOut, err = exec.Command("git", "-C", store, "status", "--porcelain").Output()
+	if err != nil {
+		t.Fatalf("git status after blocked cycle: %v", err)
+	}
+	if strings.TrimSpace(string(statusOut)) != "" {
+		t.Fatalf("expected clean repo while blocked, got %q", string(statusOut))
+	}
+}
+
+func TestSyncCentralStoreGitPushesWithoutConfiguredUpstream(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+
+	runGit := func(t *testing.T, repo string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git -C %s %v failed: %v\n%s", repo, args, err, string(out))
+		}
+	}
+
+	remote := filepath.Join(t.TempDir(), "remote.git")
+	runGit(t, ".", "init", "--bare", remote)
+
+	store := filepath.Join(t.TempDir(), "store")
+	if err := os.MkdirAll(store, 0755); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, store, "init")
+	runGit(t, store, "config", "user.email", "tkt@example.com")
+	runGit(t, store, "config", "user.name", "tkt")
+	runGit(t, store, "remote", "add", "origin", remote)
+
+	ticketDir := filepath.Join(store, "demo")
+	if err := os.MkdirAll(ticketDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ticketDir, "t1.md"), []byte("---\nid: t1\n---\n# T1\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := syncCentralStoreGit(store)
+	if !strings.Contains(result, "central: committed") {
+		t.Fatalf("expected sync commit info, got %q", result)
+	}
+
+	branchOut, err := exec.Command("git", "-C", store, "rev-parse", "--abbrev-ref", "HEAD").CombinedOutput()
+	if err != nil {
+		t.Fatalf("read current branch: %v\n%s", err, string(branchOut))
+	}
+	branch := strings.TrimSpace(string(branchOut))
+	upstreamOut, err := exec.Command("git", "-C", store, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}").CombinedOutput()
+	if err != nil {
+		t.Fatalf("expected upstream to be configured: %v\n%s", err, string(upstreamOut))
+	}
+	if strings.TrimSpace(string(upstreamOut)) != "origin/"+branch {
+		t.Fatalf("expected origin/%s upstream, got %q", branch, string(upstreamOut))
+	}
+}
