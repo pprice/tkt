@@ -27,7 +27,7 @@ go install github.com/lawrips/tkt/cmd/tkt@latest
 Then open your AI coding agent (Claude Code, Codex, etc.) and tell it:
 
 ```
-Run `tkt agent-instructions` and follow the instructions to set up tkt on this system
+Run `tkt agent-setup` and follow the instructions to set up tkt on this system
 ```
 
 It will register MCP, and configure everything. You can also follow [setup.md](internal/cli/setup.md) manually.
