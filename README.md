@@ -30,7 +30,7 @@ Then open your AI coding agent (Claude Code, Codex, etc.) and tell it:
 Run `tkt agent-instructions` and follow the instructions to set up tkt on this system
 ```
 
-It will register MCP, and configure everything. You can also follow [setup.md](internal\cli\setup.md) manually.
+It will register MCP, and configure everything. You can also follow [setup.md](internal/cli/setup.md) manually.
 
 After that, in each project you want to use tkt in run:
 

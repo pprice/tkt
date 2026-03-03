@@ -161,8 +161,8 @@ func rootCommand() command {
 			runMCP,
 		),
 		"version":      commandWithRunner("version", "version", "Print version and exit", runVersion),
-		"instructions": commandWithRunner("agent-instructions", "agent-instructions", "Print agent instructions", runInstructions),
-		"setup":        commandWithRunner("agent-setup", "agent-setup", "Print setup instructions", runSetup),
+		"agent-instructions": commandWithRunner("agent-instructions", "agent-instructions", "Print agent instructions", runInstructions),
+		"agent-setup":        commandWithRunner("agent-setup", "agent-setup", "Print setup instructions", runSetup),
 		"context": commandWithRunner(
 			"context",
 			"context <id>",
